@@ -11,7 +11,7 @@ can be changed."
 -- Peter Suber
 
 
-What is this going on github.com?
+What is this doing on github.com?
 =================================
 
 I implemented Nomic on Amazon's EC2 instance as PHP code. You can interact with Nomic at the following url:
