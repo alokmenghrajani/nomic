@@ -29,8 +29,11 @@ function my_exec($cmd, $pre) {
 }
 
 $patch = null;
-if (isset($_POST['patch'])) {
+$sigs  = null;
+
+if (isset($_POST['patch']) && isset($_POST['sigs'])) {
   $patch = $_POST['patch'];
+  $sigs = $_POST['sigs'];
 }
 
 $body = null;
@@ -39,27 +42,64 @@ $ok = null;
 
 if ($patch) {
   $pre = <pre/>;
-  
-  // copy patch to temporary file
-  $f = tempnam('/tmp', 'patch-');
-  file_put_contents($f, $patch);
 
-  // apply patch
-  $result = my_exec('/usr/bin/git am --ignore-whitespace ' . $f, $pre);
-  if ($result === 0) {
-    $result = my_exec('/usr/bin/git push', $pre);
-    if ($result === 0) {
-      $ok = <p style="color: green">patch applied!</p>;
-    } else {
-      $error = <p style="color: red">git push failed. Error code: {$result}.</p>;
+  try {
+    // copy patch to temporary file
+    $patch_file = tempnam('/tmp', 'patch-');
+    file_put_contents($patch_file, $patch);
+
+    // copy sigs to temporary file
+    $sigs_file = tempnam('/tmp', 'sigs-');
+    file_put_contents($sigs_file, $sigs);
+
+    // count the number of public keys
+    $n_players = (int)exec('/usr/bin/gpg --homedir . --list-public-keys | grep "pub " | wc -l');
+
+    // count the number of signatures on the patch file
+    $output = array();
+    $result = -1;
+    exec('/usr/bin/gpg --homedir . --verify ' . $sigs_file . ' ' . $patch_file . ' 2>&1', $output, $result);
+    $signatures = array();
+    $marker = 'Good signature from ';
+    foreach ($output as $line) {
+      $pre->appendChild(<x:frag>{$line}{"\n"}</x:frag>);
+      $pos = strpos($line, $marker);
+      if ($pos !== false) {
+        $name = substr($line, $pos + strlen($marker));
+        $name = trim($name);
+        $signatures[$name] = true;
+      }
     }
-  } else {
-    $error = <p style="color: red">git am failed. Error code: {$result}.</p>;
-    my_exec('/usr/bin/git am --abort', $pre);
-  }
+    if ($result !== 0) {
+      throw new Exception('Signature check failed');
+    }
+    if (count($signatures) <= floor($n_players / 2)) {
+       throw new Exception('Insufficient number of signatures');
+    }
 
-  // delete temporary file
-  unlink($f);
+    // insert signatures in patch
+    $patch .= $sigs;
+    file_put_contents($patch_file, $patch);
+
+    // apply patch
+    $result = my_exec('/usr/bin/git am --ignore-whitespace ' . $f, $pre);
+    if ($result === 0) {
+      $result = my_exec('/usr/bin/git push', $pre);
+      if ($result === 0) {
+        $ok = <p style="color: green">patch applied!</p>;
+      } else {
+        $error = <p style="color: red">git push failed. Error code: {$result}.</p>;
+      }
+    } else {
+      $error = <p style="color: red">git am failed. Error code: {$result}.</p>;
+      my_exec('/usr/bin/git am --abort', $pre);
+    }
+
+    // delete temporary file
+    unlink($f);
+  } catch (Exception $ex) {
+    $error = <p style="color: red">Exception: {$ex->getMessage()}</p>;
+  }
 
   $body =
     <x:frag>
@@ -79,4 +119,3 @@ if ($patch) {
 echo '<!DOCTYPE html><html><head></head>';
 echo $body;
 echo '</html>';
-
