@@ -111,7 +111,11 @@ if ($patch) {
 } else {
   $body =
     <form action="/index.php" method="post">
+      Patch:<br/>
       <textarea name="patch" cols="100" rows="20"></textarea>
+      <br/>
+      Sigs:<br/>
+      <textarea name="sigs" cols="70" rows="10"></textarea>
       <br/>
       <input type="submit"/>
     </form>;
