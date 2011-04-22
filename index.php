@@ -82,7 +82,7 @@ if ($patch) {
     file_put_contents($patch_file, $patch);
 
     // apply patch
-    $result = my_exec('/usr/bin/git am --ignore-whitespace ' . $f, $pre);
+    $result = my_exec('/usr/bin/git am --ignore-whitespace ' . $patch_file, $pre);
     if ($result === 0) {
       $result = my_exec('/usr/bin/git push', $pre);
       if ($result === 0) {
@@ -96,7 +96,8 @@ if ($patch) {
     }
 
     // delete temporary file
-    unlink($f);
+    unlink($patch_file);
+    unlink($sigs_file);
   } catch (Exception $ex) {
     $error = <p style="color: red">Exception: {$ex->getMessage()}</p>;
   }
